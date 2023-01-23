@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{.Item.Name}}</title>
+</head>
+<body>
+    <div style="text-align: center;"><h1>{{.Item.Name}}</h1></div><br>
+    <h2>Complements of {{.Item.ProvidedBy}}</h2><br>
+    <h2>Value: {{.Item.Value}}</h2><br>
+    <p>{{.Item.Description}}</p><br>
+    <br>
+    <table title="Current High Bid">
+        <tr>
+            <th>Bidder</th>
+            <th>Bid</th>
+        </tr>
+        <tr>
+            <td>{{.Bid.AuctionID}}</td>
+            <td>{{.Bid.BidAmount}}</td>
+        </tr>
+    </table>
+
+    <form method="POST">
+        <label>Your Auction ID</label><br>
+        <input type="text" name="AuctionID"><br>
+        <label>Your Bid</label><br>
+        <input type="text" name="BidAmount"><br>
+        <label>Your Name</label><br>
+        <input type="text" name="BidderName"><br>
+        <label>Your Email Address</label><br>
+        <input type="email" name="Email"><br>
+        <input type="submit">
+    </form>
+
+</body>
+</html>
