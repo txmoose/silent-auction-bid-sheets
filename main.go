@@ -62,7 +62,7 @@ var (
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.ParseFiles("templates/index.html"))
 	tmplData := IndexTemplateData{Event: Event}
-	tmpl.Execute(w, tmplData)
+	_ = tmpl.Execute(w, tmplData)
 	indexReqs.Inc()
 	log.Printf("[INFO] Hello World from %s", r.RemoteAddr)
 }
@@ -77,7 +77,7 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 
 		itemID, err := strconv.ParseUint(vars["itemID"], 10, 32)
 		if err != nil {
-			errTmpl.Execute(w, ErrorPageData{Message: "Invalid Item"})
+			_ = errTmpl.Execute(w, ErrorPageData{Message: "Invalid Item"})
 			log.Fatal("Item ID was broken")
 		}
 
@@ -93,7 +93,7 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Execute Template
-		tmpl.Execute(w, itemTemplateData)
+		_ = tmpl.Execute(w, itemTemplateData)
 
 		// Increment Prometheus Metric Counter
 		itemReqs.WithLabelValues(item.Name, r.Method).Inc()
@@ -107,13 +107,13 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		errTmpl := template.Must(template.ParseFiles("templates/error.html"))
 		endTime, err := time.Parse(time.RFC822, endTimeString)
 		if err != nil {
-			errTmpl.Execute(w, ErrorPageData{Message: "Something went wrong, please try again"})
+			_ = errTmpl.Execute(w, ErrorPageData{Message: "Something went wrong, please try again"})
 			log.Print("Parsing endTime failed")
 			return
 		}
 
 		if time.Now().After(endTime) {
-			errTmpl.Execute(w, ErrorPageData{Message: "I'm sorry, the auction has closed."})
+			_ = errTmpl.Execute(w, ErrorPageData{Message: "I'm sorry, the auction has closed."})
 			log.Print("Bid after close time")
 			return
 		}
@@ -123,7 +123,7 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		// Read the ItemID
 		ItemID, err := strconv.ParseUint(vars["itemID"], 10, 32)
 		if err != nil {
-			errTmpl.Execute(w, ErrorPageData{Message: "Invalid Item"})
+			_ = errTmpl.Execute(w, ErrorPageData{Message: "Invalid Item"})
 			log.Print("Item ID was broken")
 			return
 		}
@@ -131,19 +131,19 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		// Read in items from form
 		AuctionID, err := strconv.ParseUint(r.FormValue("AuctionID"), 10, 32)
 		if err != nil {
-			errTmpl.Execute(w, ErrorPageData{Message: "Auction ID must be a number"})
+			_ = errTmpl.Execute(w, ErrorPageData{Message: "Auction ID must be a number"})
 			log.Print("Auction ID was not a number")
 			return
 		}
 		BidAmount, err := strconv.ParseUint(r.FormValue("BidAmount"), 10, 32)
 		if err != nil {
-			errTmpl.Execute(w, ErrorPageData{Message: "Bid Amount must be a number"})
+			_ = errTmpl.Execute(w, ErrorPageData{Message: "Bid Amount must be a number"})
 			log.Print("Bid Amount was not a number")
 			return
 		}
 		email, err := emailaddress.Parse(r.FormValue("Email"))
 		if err != nil {
-			errTmpl.Execute(w, ErrorPageData{Message: "Email address appears to be invalid"})
+			_ = errTmpl.Execute(w, ErrorPageData{Message: "Email address appears to be invalid"})
 			log.Print("That is not a valid email address")
 			return
 		}
@@ -169,23 +169,23 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// execute thanks template
-		tmpl.Execute(w, itemTemplateData)
+		_ = tmpl.Execute(w, itemTemplateData)
 		// Increment Prometheus Metric Counter
 		itemReqs.WithLabelValues(item.Name, r.Method).Inc()
 
 	} else {
-		fmt.Fprint(w, "Stop that")
+		_, _ = fmt.Fprint(w, "Stop that")
 	}
 }
 
 func adminHandler(w http.ResponseWriter, r *http.Request) {
 	adminReqs.Inc()
 	log.Printf("[INFO] Admin Request from %s", r.RemoteAddr)
-	fmt.Fprint(w, "Hello World! Admin Page")
+	_, _ = fmt.Fprint(w, "Hello World! Admin Page")
 }
 
 func init() {
-	prometheus.Register(itemReqs)
+	_ = prometheus.Register(itemReqs)
 	Event = os.Getenv("AUCTION_EVENT")
 	if Event == "" {
 		log.Fatal("[FATAL] Event environment variable not set.")
@@ -203,8 +203,8 @@ func main() {
 	log.Print("Database Connection Successful")
 
 	log.Print("Migrating Tables Beginning")
-	db.AutoMigrate(&Item{})
-	db.AutoMigrate(&Bid{})
+	_ = db.AutoMigrate(&Item{})
+	_ = db.AutoMigrate(&Bid{})
 	log.Print("Migrating Tables Complete")
 
 	firstItem := Item{
