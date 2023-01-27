@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"time"
 )
 
 // TODO:
@@ -55,6 +56,7 @@ var (
 			Name: "auction_admin_total",
 			Help: "Counter for hits on admin page.",
 		})
+	endTimeString = "26 Jan 23 22:15 EST"
 )
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
@@ -103,6 +105,18 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		// Initialize templates
 		tmpl := template.Must(template.ParseFiles("templates/thanks.html"))
 		errTmpl := template.Must(template.ParseFiles("templates/error.html"))
+		endTime, err := time.Parse(time.RFC822, endTimeString)
+		if err != nil {
+			errTmpl.Execute(w, ErrorPageData{Message: "Something went wrong, please try again"})
+			log.Print("Parsing endTime failed")
+			return
+		}
+
+		if time.Now().After(endTime) {
+			errTmpl.Execute(w, ErrorPageData{Message: "I'm sorry, the auction has closed."})
+			log.Print("Bid after close time")
+			return
+		}
 
 		// Get variables from the Mux router
 		vars := mux.Vars(r)
@@ -194,10 +208,10 @@ func main() {
 	log.Print("Migrating Tables Complete")
 
 	firstItem := Item{
-		Name:        "PS5",
-		Value:       500,
-		ProvidedBy:  "Sony",
-		Description: "A PlayStation 5",
+		Name:        "Nintendo Switch",
+		Value:       300,
+		ProvidedBy:  "Nintendo",
+		Description: "A Nintendo Switch",
 	}
 
 	db.Create(&firstItem)
