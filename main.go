@@ -1,13 +1,18 @@
 package main
 
 import (
+	"fmt"
+	"github.com/gorilla/mux"
 	"github.com/mcnijman/go-emailaddress"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"html/template"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -25,15 +30,7 @@ import (
 
 // NOTES:
 // Got DB query working, but it still delivers an "empty" page on not-found IDs, need to fix
-// Bid inserts work, need logic for high bid, rejecting bids after cutoff, etc...
-
-import (
-	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"net/http"
-)
+// Reject after time works, high bid works, entering bid works
 
 var (
 	Event     string
