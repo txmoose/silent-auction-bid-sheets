@@ -7,14 +7,13 @@ import (
 	"gorm.io/gorm"
 	"html/template"
 	"log"
+	"net"
 	"os"
 	"strconv"
 )
 
 // TODO:
 // - Actual Functions
-//   - Present Bid Sheet
-//   - Accept/Reject Bid
 //   - Admin functions
 //     - Show High Bid For Item
 //     - Set Auction End Time
@@ -35,40 +34,6 @@ import (
 	"net/http"
 )
 
-type Item struct {
-	gorm.Model
-	Name        string
-	ProvidedBy  string
-	Description string
-	Value       uint
-	Bid         []Bid
-}
-
-type Bid struct {
-	gorm.Model
-	AuctionID uint
-	BidAmount uint
-	Name      string
-	Email     string
-	ItemID    uint
-}
-
-type IndexTemplateData struct {
-	Event string
-}
-
-type ItemTemplateData struct {
-	Item Item
-	Bid  Bid
-}
-
-type ItemBidFormData struct {
-	AuctionID  string
-	BidAmount  string
-	BidderName string
-	Email      string
-}
-
 var (
 	Event     string
 	db        *gorm.DB
@@ -83,17 +48,13 @@ var (
 			Name: "auction_item_total",
 			Help: "Counter for hits on item page.",
 		},
-		[]string{"item"},
+		[]string{"item", "method"},
 	)
 	adminReqs = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "auction_admin_total",
 			Help: "Counter for hits on admin page.",
 		})
-	HighBid = Bid{
-		AuctionID: 333,
-		BidAmount: 80,
-	}
 )
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
@@ -106,41 +67,73 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 func itemHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
+		item := Item{}
+		var bid Bid
 		vars := mux.Vars(r)
 		tmpl := template.Must(template.ParseFiles("templates/item.html"))
-		itemID := vars["itemID"]
-		itemIDInt, _ := strconv.Atoi(itemID)
-		item := Item{}
-		db.First(&item, itemIDInt)
-		itemTemplateData := ItemTemplateData{
-			Item: item,
-			Bid:  HighBid,
-		}
-		tmpl.Execute(w, itemTemplateData)
-		itemReqs.WithLabelValues(itemID).Inc()
-		log.Printf("[INFO] Item %d requested by %s", item.ID, r.RemoteAddr)
+		errTmpl := template.Must(template.ParseFiles("templates/error.html"))
 
-	} else if r.Method == http.MethodPost {
-		vars := mux.Vars(r)
-		ItemID, err := strconv.ParseUint(vars["itemID"], 10, 32)
+		itemID, err := strconv.ParseUint(vars["itemID"], 10, 32)
 		if err != nil {
+			errTmpl.Execute(w, ErrorPageData{Message: "Invalid Item"})
 			log.Fatal("Item ID was broken")
 		}
 
+		// Get Item From Database
+		db.First(&item, itemID)
+		// Get High Bid From Database
+		db.Order("bid_amount desc").Find(&bid, "item_id = ?", item.ID).Limit(1)
+
+		// Insert info into HTML Template
+		itemTemplateData := ItemTemplateData{
+			Item: item,
+			Bid:  bid,
+		}
+
+		// Execute Template
+		tmpl.Execute(w, itemTemplateData)
+
+		// Increment Prometheus Metric Counter
+		itemReqs.WithLabelValues(item.Name, r.Method).Inc()
+
+		remoteAddr, _, _ := net.SplitHostPort(r.RemoteAddr)
+		log.Printf("[INFO] Item %d requested by %s", item.ID, remoteAddr)
+
+	} else if r.Method == http.MethodPost {
+		// Initialize templates
+		tmpl := template.Must(template.ParseFiles("templates/thanks.html"))
+		errTmpl := template.Must(template.ParseFiles("templates/error.html"))
+
+		// Get variables from the Mux router
+		vars := mux.Vars(r)
+		// Read the ItemID
+		ItemID, err := strconv.ParseUint(vars["itemID"], 10, 32)
+		if err != nil {
+			errTmpl.Execute(w, ErrorPageData{Message: "Invalid Item"})
+			log.Print("Item ID was broken")
+			return
+		}
+
+		// Read in items from form
 		AuctionID, err := strconv.ParseUint(r.FormValue("AuctionID"), 10, 32)
 		if err != nil {
-			log.Fatal("Auction ID was not a number")
+			errTmpl.Execute(w, ErrorPageData{Message: "Auction ID must be a number"})
+			log.Print("Auction ID was not a number")
+			return
 		}
-
 		BidAmount, err := strconv.ParseUint(r.FormValue("BidAmount"), 10, 32)
 		if err != nil {
-			log.Fatal("Bid Amount was not a number")
+			errTmpl.Execute(w, ErrorPageData{Message: "Bid Amount must be a number"})
+			log.Print("Bid Amount was not a number")
+			return
 		}
-
 		email, err := emailaddress.Parse(r.FormValue("Email"))
 		if err != nil {
-			log.Fatal("That is not a valid email address")
+			errTmpl.Execute(w, ErrorPageData{Message: "Email address appears to be invalid"})
+			log.Print("That is not a valid email address")
+			return
 		}
+		// Build a Bid Item from form data
 		newBid := Bid{
 			AuctionID: uint(AuctionID),
 			BidAmount: uint(BidAmount),
@@ -148,7 +141,24 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 			Email:     email.String(),
 			ItemID:    uint(ItemID),
 		}
+		// Insert new bid into database
 		db.Create(&newBid)
+
+		// Get corresponding Item for thanks page
+		item := Item{}
+		db.First(&item, ItemID)
+
+		// Build message for thanks page
+		itemTemplateData := ItemTemplateData{
+			Item: item,
+			Bid:  newBid,
+		}
+
+		// execute thanks template
+		tmpl.Execute(w, itemTemplateData)
+		// Increment Prometheus Metric Counter
+		itemReqs.WithLabelValues(item.Name, r.Method).Inc()
+
 	} else {
 		fmt.Fprint(w, "Stop that")
 	}
