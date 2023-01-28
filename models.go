@@ -15,8 +15,6 @@ type Bid struct {
 	gorm.Model
 	AuctionID uint
 	BidAmount uint
-	Name      string
-	Email     string
 	ItemID    uint
 }
 

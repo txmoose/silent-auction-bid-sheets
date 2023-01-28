@@ -1,9 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
-	"github.com/mcnijman/go-emailaddress"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -65,7 +65,8 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func itemHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
+	switch r.Method {
+	case http.MethodGet:
 		item := Item{}
 		var bid Bid
 		vars := mux.Vars(r)
@@ -79,7 +80,12 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Get Item From Database
-		db.First(&item, itemID)
+		err = db.First(&item, itemID).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			errTmpl.Execute(w, ErrorPageData{Message: "That item was not found"})
+			return
+		}
+
 		// Get High Bid From Database
 		db.Order("bid_amount desc").Find(&bid, "item_id = ?", item.ID).Limit(1)
 
@@ -98,7 +104,7 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		remoteAddr, _, _ := net.SplitHostPort(r.RemoteAddr)
 		log.Printf("[INFO] Item %d requested by %s", item.ID, remoteAddr)
 
-	} else if r.Method == http.MethodPost {
+	case http.MethodPost:
 		// Initialize templates
 		tmpl := template.Must(template.ParseFiles("templates/thanks.html"))
 		errTmpl := template.Must(template.ParseFiles("templates/error.html"))
@@ -138,18 +144,11 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 			log.Print("Bid Amount was not a number")
 			return
 		}
-		email, err := emailaddress.Parse(r.FormValue("Email"))
-		if err != nil {
-			_ = errTmpl.Execute(w, ErrorPageData{Message: "Email address appears to be invalid"})
-			log.Print("That is not a valid email address")
-			return
-		}
+
 		// Build a Bid Item from form data
 		newBid := Bid{
 			AuctionID: uint(AuctionID),
 			BidAmount: uint(BidAmount),
-			Name:      r.FormValue("BidderName"),
-			Email:     email.String(),
 			ItemID:    uint(ItemID),
 		}
 		// Insert new bid into database
@@ -170,7 +169,7 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		// Increment Prometheus Metric Counter
 		itemReqs.WithLabelValues(item.Name, r.Method).Inc()
 
-	} else {
+	default:
 		_, _ = fmt.Fprint(w, "Stop that")
 	}
 }
@@ -205,10 +204,10 @@ func main() {
 	log.Print("Migrating Tables Complete")
 
 	firstItem := Item{
-		Name:        "Nintendo Switch",
-		Value:       300,
-		ProvidedBy:  "Nintendo",
-		Description: "A Nintendo Switch",
+		Name:        "Swim With The Whale Sharks",
+		Value:       500,
+		ProvidedBy:  "Atlanta Aquarium",
+		Description: "Swim with the whale sharks encounter",
 	}
 
 	db.Create(&firstItem)
