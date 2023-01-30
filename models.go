@@ -27,11 +27,9 @@ type ItemTemplateData struct {
 	Bid  Bid
 }
 
-type ItemBidFormData struct {
-	AuctionID  string
-	BidAmount  string
-	BidderName string
-	Email      string
+type AdminTemplateData struct {
+	Event string
+	Items []ItemTemplateData
 }
 
 type ErrorPageData struct {

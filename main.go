@@ -18,16 +18,6 @@ import (
 	"time"
 )
 
-// TODO:
-// - Actual Functions
-//   - Admin functions
-//     - Show High Bid For Item
-//     - Set Auction End Time
-//     - Export all bids to Excel/CSV
-//     - Batch Import Items
-//     - Generate QR Codes For Items
-// - Basic Auth for admin and metrics endpoints
-
 // NOTES:
 // Got DB query working, but it still delivers an "empty" page on not-found IDs, need to fix
 // Reject after time works, high bid works, entering bid works
@@ -53,8 +43,16 @@ var (
 			Name: "auction_admin_total",
 			Help: "Counter for hits on admin page.",
 		})
-	endTimeString = "26 Jan 23 22:15 EST"
+	endTimeString = "30 Jan 23 21:15 EST"
 )
+
+func (item *Item) GetHighBid(bid *Bid) {
+	db.Order("bid_amount desc").Find(bid, "item_id = ?", item.ID).Limit(1)
+}
+
+func (item *Item) GetAllBids(bids *[]Bid) {
+	db.Order("bid_amount desc").Find(bids, "item_id = ?", item.ID)
+}
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.ParseFiles("templates/index.html"))
@@ -76,18 +74,19 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		itemID, err := strconv.ParseUint(vars["itemID"], 10, 32)
 		if err != nil {
 			_ = errTmpl.Execute(w, ErrorPageData{Message: "Invalid Item"})
-			log.Fatal("Item ID was broken")
+			log.Printf("Item ID was broken - %v", r.RequestURI)
+			return
 		}
 
 		// Get Item From Database
 		err = db.First(&item, itemID).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			errTmpl.Execute(w, ErrorPageData{Message: "That item was not found"})
+			_ = errTmpl.Execute(w, ErrorPageData{Message: "That item was not found"})
 			return
 		}
 
 		// Get High Bid From Database
-		db.Order("bid_amount desc").Find(&bid, "item_id = ?", item.ID).Limit(1)
+		item.GetHighBid(&bid)
 
 		// Insert info into HTML Template
 		itemTemplateData := ItemTemplateData{
@@ -174,10 +173,45 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// TODO:
+// - Actual Functions
+//   - Admin functions
+//   - Export all bids to Excel/CSV - additional script
+//   - Batch Import Items - additional script
+//   - Generate QR Codes For Items - additional script
+//
+// - Basic Auth for admin and metrics endpoints
 func adminHandler(w http.ResponseWriter, r *http.Request) {
+	// Get all items and
+	var (
+		items             []Item
+		bids              []Bid
+		adminTemplateData AdminTemplateData
+		adminItem         ItemTemplateData
+	)
+
+	adminTmpl := template.Must(template.ParseFiles("templates/admin.html"))
+
+	adminTemplateData.Event = Event
+
+	db.Find(&items)
+
+	for _, item := range items {
+		item.GetAllBids(&bids)
+		if len(bids) == 0 {
+			// If we have no bids, set up null values for zeros
+			adminItem.Bid = Bid{}
+		} else {
+			adminItem.Bid = bids[0]
+		}
+		adminItem.Item = item
+		adminTemplateData.Items = append(adminTemplateData.Items, adminItem)
+	}
+
+	adminTmpl.Execute(w, adminTemplateData)
+
 	adminReqs.Inc()
 	log.Printf("[INFO] Admin Request from %s", r.RemoteAddr)
-	_, _ = fmt.Fprint(w, "Hello World! Admin Page")
 }
 
 func init() {
@@ -203,16 +237,16 @@ func main() {
 	_ = db.AutoMigrate(&Bid{})
 	log.Print("Migrating Tables Complete")
 
-	firstItem := Item{
-		Name:        "Swim With The Whale Sharks",
-		Value:       500,
-		ProvidedBy:  "Atlanta Aquarium",
-		Description: "Swim with the whale sharks encounter",
-	}
+	//firstItem := Item{
+	//	Name:        "Swim With The Whale Sharks",
+	//	Value:       500,
+	//	ProvidedBy:  "Atlanta Aquarium",
+	//	Description: "Swim with the whale sharks encounter",
+	//}
 
-	db.Create(&firstItem)
-
-	log.Printf("Item Created %v", firstItem.ID)
+	//db.Create(&firstItem)
+	//
+	//log.Printf("Item Created %v", firstItem.ID)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/", indexHandler).Methods("GET")
