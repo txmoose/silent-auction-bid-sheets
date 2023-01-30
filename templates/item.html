@@ -1,34 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <link rel="icon" href="data:,">
-    <title>{{.Item.Name}}</title>
-</head>
-<body>
-    <div style="text-align: center;"><h1>{{.Item.Name}}</h1></div><br>
-    <h2>Complements of {{.Item.ProvidedBy}}</h2><br>
-    <h2>Value: {{.Item.Value}}</h2><br>
-    <p>{{.Item.Description}}</p><br>
-    <br>
-    <table title="Current High Bid">
-        <tr>
-            <th>Bidder</th>
-            <th>Current High Bid</th>
-        </tr>
-        <tr>
-            <td>{{.Bid.AuctionID}}</td>
-            <td>{{.Bid.BidAmount}}</td>
-        </tr>
-    </table>
-
-    <form method="POST">
-        <label>Your Auction ID</label><br>
-        <input type="text" name="AuctionID"><br>
-        <label>Your Bid</label><br>
-        <input type="text" name="BidAmount"><br>
-        <input type="submit" value="Bid!">
-    </form>
-
-</body>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="icon" href="data:,">
+        <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.*/css/pico.min.css">
+        <title>{{ .Item.Name }}</title>
+    </head>
+    <body>
+        <main class="container">
+            <article>
+                <hgroup>
+                    <h2>{{ .Item.Name }}</h2>
+                    <h3>Compliments of {{ .Item.ProvidedBy }}, valued at {{ .Item.Value }}</h3>
+                </hgroup>
+                <div role="grid">
+                    {{ .Item.Description }}
+                </div>
+                <div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="col">Bidder ID</th>
+                                <th scope="col">Current High Bid</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <th scope="row">{{ .Bid.AuctionID }}</th>
+                                <th scope="row">{{ .Bid.BidAmount }}</th>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <details open>
+                    <summary>Cast your bid!</summary>
+                    <form>
+                        <div class="grid">
+                            <label for="AuctionID">
+                                Auction ID
+                                <input type="text" id="AuctionID" name="AuctionID" placeholder="23" required>
+                            </label>
+                            <label for="BidAmount">
+                                Your Bid
+                                <input type="number" id="BidAmount" name="BidAmount" placeholder="50" required>
+                            </label>
+                            <button type="submit">Bid!</button>
+                        </div>
+                    </form>
+                </details>
+            </article>
+        </main>
+    </body>
 </html>
