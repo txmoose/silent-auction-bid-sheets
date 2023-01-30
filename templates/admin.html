@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="icon" href="data:,">
+        <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.*/css/pico.min.css">
+        <title>{{ .Event }}</title>
+    </head>
+    <body>
+        <main class="container">
+            <article>
+                <details>
+                    <summary role="button">Set Auction End Time</summary>
+                    <div class="grid">
+                        <label for="date">Date
+                            <input type="date" id="date" name="date">
+                        </label>
+                        <label for="time">Time
+                            <input type="time" id="time" name="time">
+                        </label>
+                    </div>
+                </details>
+            </article>
+            <article>
+                <details>
+                    <summary role="button">High Bids</summary>
+                    <table role="grid">
+                        <thead>
+                            <tr>
+                                <th scope="col">Item ID</th>
+                                <th scope="col">Item Name</th>
+                                <th scope="col">Auction ID</th>
+                                <th scope="col">Highest Bid</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{ range $index, $item := .Items }}
+                            <tr>
+                                <th scope="row">{{ .Item.ID }}</th>
+                                <td>{{ .Item.Name }}</td>
+                                <td>{{ .Bid.AuctionID }}</td>
+                                <td>{{ .Bid.BidAmount }}</td>
+                            </tr>
+                            {{ end }}
+                        </tbody>
+                    </table>
+                </details>
+            </article>
+        </main>
+    </body>
+</html>
