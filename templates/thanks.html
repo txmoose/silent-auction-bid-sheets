@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-      <head>
-          <meta charset="UTF-8">
-          <link rel="icon" href="data:,">
-          <title>Thanks!</title>
-      </head>
-
-      <body>
-          <div style="text-align: center;"><p>Thank you for your bid on {{.Item.Name}}!</p></div>
-      </body>
+    <head>
+        {{ template "head" . }}
+        <title>{{ .Event }}</title>
+    </head>
+    <body>
+        <main class="container">
+            <article>
+                <h1>Thank you for your bid on {{.Item.Name}}!</h1>
+            </article>
+        </main>
+    </body>
 </html>

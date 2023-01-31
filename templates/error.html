@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <meta charset="UTF-8">
-        <link rel="icon" href="data:,">
+        {{ template "head" . }}
         <title>Error</title>
     </head>
     <body>
-        <p>{{.Message}}</p>
+        <main class="container">
+            <article>
+                <h1>{{.Message}}</h1>
+            </article>
+        </main>
     </body>
 </html>
