@@ -30,6 +30,11 @@ var (
 	Event            string
 	ExpectedUsername string
 	ExpectedPassword string
+	DbUsername       string
+	DbPassword       string
+	DbDatabase       string
+	DbHost           string
+	DbPort           string
 	db               *gorm.DB
 	err              error
 	tmpls            = template.Must(template.ParseGlob("templates/*.html"))
@@ -281,6 +286,11 @@ func init() {
 	Event = os.Getenv("AUCTION_EVENT")
 	ExpectedUsername = os.Getenv("AUCTION_USER")
 	ExpectedPassword = os.Getenv("AUCTION_PASS")
+	DbUsername = os.Getenv("AUCTION_DB_USER")
+	DbPassword = os.Getenv("AUCTION_DB_PASS")
+	DbDatabase = os.Getenv("AUCTION_DB_DB")
+	DbHost = os.Getenv("AUCTION_DB_HOST")
+	DbPort = os.Getenv("AUCTION_DB_PORT")
 	if Event == "" {
 		log.Fatal("[FATAL] Event environment variable not set.")
 	}
@@ -291,6 +301,21 @@ func init() {
 	if ExpectedPassword == "" {
 		log.Fatal("[FATAL] Password environment variable not set.")
 	}
+	if DbUsername == "" {
+		log.Fatal("[FATAL] Database Username not set.")
+	}
+	if DbPassword == "" {
+		log.Fatal("[FATAL] Database Password not set.")
+	}
+	if DbDatabase == "" {
+		log.Fatal("[FATAL] Database Name not set.")
+	}
+	if DbHost == "" {
+		log.Fatal("[FATAL] Database Host not set.")
+	}
+	if DbPort == "" {
+		log.Fatal("[FATAL] Database Port not set.")
+	}
 	log.Printf("[INFO] Username and Password set - %s", ExpectedUsername)
 }
 
@@ -299,7 +324,14 @@ func main() {
 	app.auth.username = ExpectedUsername
 	app.auth.password = ExpectedPassword
 	log.Print("Setting up Database Connection")
-	dsn := "auction:auction_pass@tcp(127.0.0.1:3306)/auction?charset=utf8mb4&parseTime=True&loc=Local"
+	dsn := fmt.Sprintf(
+		"%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		DbUsername,
+		DbPassword,
+		DbHost,
+		DbPort,
+		DbDatabase,
+	)
 	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("[FATAL] Failed to connect to database")
