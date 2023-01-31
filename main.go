@@ -30,6 +30,7 @@ var (
 	ExpectedPassword string
 	db               *gorm.DB
 	err              error
+	tmpls            = template.Must(template.ParseGlob("templates/*.html"))
 	indexReqs        = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "auction_index_total",
@@ -47,7 +48,7 @@ var (
 			Name: "auction_admin_total",
 			Help: "Counter for hits on admin page.",
 		})
-	endTimeString = "30 Jan 23 21:15 EST"
+	endTimeString = "09 Feb 23 21:15 EST"
 )
 
 // Borrowed with great appreciation from
@@ -83,9 +84,8 @@ func (item *Item) GetAllBids(bids *[]Bid) {
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
-	tmpl := template.Must(template.ParseFiles("templates/index.html"))
 	tmplData := IndexTemplateData{Event: Event}
-	_ = tmpl.Execute(w, tmplData)
+	tmpls.ExecuteTemplate(w, "index.html", tmplData)
 	indexReqs.Inc()
 	log.Printf("[INFO] Hello World from %s", r.RemoteAddr)
 }
@@ -96,12 +96,10 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		item := Item{}
 		var bid Bid
 		vars := mux.Vars(r)
-		tmpl := template.Must(template.ParseFiles("templates/item.html"))
-		errTmpl := template.Must(template.ParseFiles("templates/error.html"))
 
 		itemID, err := strconv.ParseUint(vars["itemID"], 10, 32)
 		if err != nil {
-			_ = errTmpl.Execute(w, ErrorPageData{Message: "Invalid Item"})
+			tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Invalid Item"})
 			log.Printf("Item ID was broken - %v", r.RequestURI)
 			return
 		}
@@ -109,7 +107,7 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		// Get Item From Database
 		err = db.First(&item, itemID).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			_ = errTmpl.Execute(w, ErrorPageData{Message: "That item was not found"})
+			tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "That item was not found"})
 			return
 		}
 
@@ -123,7 +121,7 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Execute Template
-		_ = tmpl.Execute(w, itemTemplateData)
+		tmpls.ExecuteTemplate(w, "item.html", itemTemplateData)
 
 		// Increment Prometheus Metric Counter
 		itemReqs.WithLabelValues(item.Name, r.Method).Inc()
@@ -133,17 +131,15 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPost:
 		// Initialize templates
-		tmpl := template.Must(template.ParseFiles("templates/thanks.html"))
-		errTmpl := template.Must(template.ParseFiles("templates/error.html"))
 		endTime, err := time.Parse(time.RFC822, endTimeString)
 		if err != nil {
-			_ = errTmpl.Execute(w, ErrorPageData{Message: "Something went wrong, please try again"})
-			log.Print("Parsing endTime failed")
+			tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Something went wrong, please try again"})
+			log.Printf("Parsing endTime failed - %v", err.Error())
 			return
 		}
 
 		if time.Now().After(endTime) {
-			_ = errTmpl.Execute(w, ErrorPageData{Message: "I'm sorry, the auction has closed."})
+			tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "I'm sorry, the auction has closed."})
 			log.Print("Bid after close time")
 			return
 		}
@@ -153,7 +149,7 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		// Read the ItemID
 		ItemID, err := strconv.ParseUint(vars["itemID"], 10, 32)
 		if err != nil {
-			_ = errTmpl.Execute(w, ErrorPageData{Message: "Invalid Item"})
+			tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Invalid Item"})
 			log.Print("Item ID was broken")
 			return
 		}
@@ -161,13 +157,13 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		// Read in items from form
 		AuctionID, err := strconv.ParseUint(r.FormValue("AuctionID"), 10, 32)
 		if err != nil {
-			_ = errTmpl.Execute(w, ErrorPageData{Message: "Auction ID must be a number"})
+			tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Auction ID must be a number"})
 			log.Print("Auction ID was not a number")
 			return
 		}
 		BidAmount, err := strconv.ParseUint(r.FormValue("BidAmount"), 10, 32)
 		if err != nil {
-			_ = errTmpl.Execute(w, ErrorPageData{Message: "Bid Amount must be a number"})
+			tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Bid Amount must be a number"})
 			log.Print("Bid Amount was not a number")
 			return
 		}
@@ -192,7 +188,7 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// execute thanks template
-		_ = tmpl.Execute(w, itemTemplateData)
+		tmpls.ExecuteTemplate(w, "thanks.html", itemTemplateData)
 		// Increment Prometheus Metric Counter
 		itemReqs.WithLabelValues(item.Name, r.Method).Inc()
 
@@ -218,8 +214,6 @@ func adminHandler(w http.ResponseWriter, r *http.Request) {
 		adminItem         ItemTemplateData
 	)
 
-	adminTmpl := template.Must(template.ParseFiles("templates/admin.html"))
-
 	adminTemplateData.Event = Event
 
 	db.Find(&items)
@@ -236,7 +230,7 @@ func adminHandler(w http.ResponseWriter, r *http.Request) {
 		adminTemplateData.Items = append(adminTemplateData.Items, adminItem)
 	}
 
-	adminTmpl.Execute(w, adminTemplateData)
+	tmpls.ExecuteTemplate(w, "admin.html", adminTemplateData)
 
 	adminReqs.Inc()
 	log.Printf("[INFO] Admin Request from %s", r.RemoteAddr)
@@ -276,17 +270,6 @@ func main() {
 	_ = db.AutoMigrate(&Item{})
 	_ = db.AutoMigrate(&Bid{})
 	log.Print("Migrating Tables Complete")
-
-	//firstItem := Item{
-	//	Name:        "Swim With The Whale Sharks",
-	//	Value:       500,
-	//	ProvidedBy:  "Atlanta Aquarium",
-	//	Description: "Swim with the whale sharks encounter",
-	//}
-
-	//db.Create(&firstItem)
-	//
-	//log.Printf("Item Created %v", firstItem.ID)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/", indexHandler).Methods("GET")
