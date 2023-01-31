@@ -23,6 +23,8 @@ import (
 // NOTES:
 // Got DB query working, but it still delivers an "empty" page on not-found IDs, need to fix
 // Reject after time works, high bid works, entering bid works
+// Basic auth works, decided to move some of admin stuff to external scripts, there's no real
+// Need to have those functions in the admin panel
 
 var (
 	Event            string
@@ -102,6 +104,7 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 
 		itemID, err := strconv.ParseUint(vars["itemID"], 10, 32)
 		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
 			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Invalid Item"})
 			if err != nil {
 				log.Printf("[ERROR] Execute Template Error line 107 - %v", err.Error())
@@ -113,6 +116,7 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		// Get Item From Database
 		err = db.First(&item, itemID).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			w.WriteHeader(http.StatusNotFound)
 			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "That item was not found"})
 			if err != nil {
 				log.Printf("[ERROR] Execute Template Error line 118 - %v", err.Error())
@@ -145,6 +149,7 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		// Initialize templates
 		endTime, err := time.Parse(time.RFC822, endTimeString)
 		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
 			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Something went wrong, please try again"})
 			if err != nil {
 				log.Printf("[ERROR] Execute Template Error line 150 - %v", err.Error())
@@ -154,6 +159,7 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if time.Now().After(endTime) {
+			w.WriteHeader(http.StatusUnauthorized)
 			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "I'm sorry, the auction has closed."})
 			if err != nil {
 				log.Printf("[ERROR] Execute Template Error line 159 - %v", err.Error())
@@ -167,6 +173,7 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		// Read the ItemID
 		ItemID, err := strconv.ParseUint(vars["itemID"], 10, 32)
 		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
 			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Invalid Item"})
 			if err != nil {
 				log.Printf("[ERROR] Execute Template Error line 172 - %v", err.Error())
@@ -178,6 +185,7 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		// Read in items from form
 		AuctionID, err := strconv.ParseUint(r.FormValue("AuctionID"), 10, 32)
 		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
 			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Auction ID must be a number"})
 			if err != nil {
 				log.Printf("[ERROR] Execute Template Error line 183 - %v", err.Error())
@@ -187,6 +195,7 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		BidAmount, err := strconv.ParseUint(r.FormValue("BidAmount"), 10, 32)
 		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
 			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Bid Amount must be a number"})
 			if err != nil {
 				log.Printf("[ERROR] Execute Template Error line 193 - %v", err.Error())
@@ -223,18 +232,16 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		itemReqs.WithLabelValues(item.Name, r.Method).Inc()
 
 	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
 		_, _ = fmt.Fprint(w, "Stop that")
 	}
 }
 
 // TODO:
 // - Actual Functions
-//   - Admin functions
 //   - Export all bids to Excel/CSV - additional script
 //   - Batch Import Items - additional script
 //   - Generate QR Codes For Items - additional script
-//
-// - Basic Auth for admin and metrics endpoints
 func adminHandler(w http.ResponseWriter, r *http.Request) {
 	// Get all items and
 	var (
