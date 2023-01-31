@@ -54,7 +54,7 @@ var (
 // Borrowed with great appreciation from
 // https://www.alexedwards.net/blog/basic-authentication-in-go
 func (app *application) basicAuth(next http.HandlerFunc) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		username, password, ok := r.BasicAuth()
 		if ok {
 			usernameHash := sha256.Sum256([]byte(username))
@@ -72,7 +72,7 @@ func (app *application) basicAuth(next http.HandlerFunc) http.HandlerFunc {
 		}
 		w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-	})
+	}
 }
 
 func (item *Item) GetHighBid(bid *Bid) {
@@ -85,7 +85,10 @@ func (item *Item) GetAllBids(bids *[]Bid) {
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	tmplData := IndexTemplateData{Event: Event}
-	tmpls.ExecuteTemplate(w, "index.html", tmplData)
+	err = tmpls.ExecuteTemplate(w, "index.html", tmplData)
+	if err != nil {
+		log.Printf("[ERROR] Execute Template Error line 90 - %v", err.Error())
+	}
 	indexReqs.Inc()
 	log.Printf("[INFO] Hello World from %s", r.RemoteAddr)
 }
@@ -99,7 +102,10 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 
 		itemID, err := strconv.ParseUint(vars["itemID"], 10, 32)
 		if err != nil {
-			tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Invalid Item"})
+			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Invalid Item"})
+			if err != nil {
+				log.Printf("[ERROR] Execute Template Error line 107 - %v", err.Error())
+			}
 			log.Printf("Item ID was broken - %v", r.RequestURI)
 			return
 		}
@@ -107,7 +113,10 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		// Get Item From Database
 		err = db.First(&item, itemID).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "That item was not found"})
+			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "That item was not found"})
+			if err != nil {
+				log.Printf("[ERROR] Execute Template Error line 118 - %v", err.Error())
+			}
 			return
 		}
 
@@ -121,7 +130,10 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Execute Template
-		tmpls.ExecuteTemplate(w, "item.html", itemTemplateData)
+		err = tmpls.ExecuteTemplate(w, "item.html", itemTemplateData)
+		if err != nil {
+			log.Printf("[ERROR] Execute Template Error line 135 - %v", err.Error())
+		}
 
 		// Increment Prometheus Metric Counter
 		itemReqs.WithLabelValues(item.Name, r.Method).Inc()
@@ -133,13 +145,19 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		// Initialize templates
 		endTime, err := time.Parse(time.RFC822, endTimeString)
 		if err != nil {
-			tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Something went wrong, please try again"})
+			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Something went wrong, please try again"})
+			if err != nil {
+				log.Printf("[ERROR] Execute Template Error line 150 - %v", err.Error())
+			}
 			log.Printf("Parsing endTime failed - %v", err.Error())
 			return
 		}
 
 		if time.Now().After(endTime) {
-			tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "I'm sorry, the auction has closed."})
+			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "I'm sorry, the auction has closed."})
+			if err != nil {
+				log.Printf("[ERROR] Execute Template Error line 159 - %v", err.Error())
+			}
 			log.Print("Bid after close time")
 			return
 		}
@@ -149,7 +167,10 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		// Read the ItemID
 		ItemID, err := strconv.ParseUint(vars["itemID"], 10, 32)
 		if err != nil {
-			tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Invalid Item"})
+			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Invalid Item"})
+			if err != nil {
+				log.Printf("[ERROR] Execute Template Error line 172 - %v", err.Error())
+			}
 			log.Print("Item ID was broken")
 			return
 		}
@@ -157,13 +178,19 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		// Read in items from form
 		AuctionID, err := strconv.ParseUint(r.FormValue("AuctionID"), 10, 32)
 		if err != nil {
-			tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Auction ID must be a number"})
+			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Auction ID must be a number"})
+			if err != nil {
+				log.Printf("[ERROR] Execute Template Error line 183 - %v", err.Error())
+			}
 			log.Print("Auction ID was not a number")
 			return
 		}
 		BidAmount, err := strconv.ParseUint(r.FormValue("BidAmount"), 10, 32)
 		if err != nil {
-			tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Bid Amount must be a number"})
+			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Bid Amount must be a number"})
+			if err != nil {
+				log.Printf("[ERROR] Execute Template Error line 193 - %v", err.Error())
+			}
 			log.Print("Bid Amount was not a number")
 			return
 		}
@@ -188,7 +215,10 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// execute thanks template
-		tmpls.ExecuteTemplate(w, "thanks.html", itemTemplateData)
+		err = tmpls.ExecuteTemplate(w, "thanks.html", itemTemplateData)
+		if err != nil {
+			log.Printf("[ERROR] Execute Template Error line 220 - %v", err.Error())
+		}
 		// Increment Prometheus Metric Counter
 		itemReqs.WithLabelValues(item.Name, r.Method).Inc()
 
@@ -230,7 +260,10 @@ func adminHandler(w http.ResponseWriter, r *http.Request) {
 		adminTemplateData.Items = append(adminTemplateData.Items, adminItem)
 	}
 
-	tmpls.ExecuteTemplate(w, "admin.html", adminTemplateData)
+	err = tmpls.ExecuteTemplate(w, "admin.html", adminTemplateData)
+	if err != nil {
+		log.Printf("[ERROR] Execute Template Error line 265 - %v", err.Error())
+	}
 
 	adminReqs.Inc()
 	log.Printf("[INFO] Admin Request from %s", r.RemoteAddr)
