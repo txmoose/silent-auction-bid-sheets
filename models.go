@@ -35,3 +35,10 @@ type AdminTemplateData struct {
 type ErrorPageData struct {
 	Message string
 }
+
+type application struct {
+	auth struct {
+		username string
+		password string
+	}
+}

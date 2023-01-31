@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
@@ -23,10 +25,12 @@ import (
 // Reject after time works, high bid works, entering bid works
 
 var (
-	Event     string
-	db        *gorm.DB
-	err       error
-	indexReqs = promauto.NewCounter(
+	Event            string
+	ExpectedUsername string
+	ExpectedPassword string
+	db               *gorm.DB
+	err              error
+	indexReqs        = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "auction_index_total",
 			Help: "Counter for hits on index page.",
@@ -45,6 +49,30 @@ var (
 		})
 	endTimeString = "30 Jan 23 21:15 EST"
 )
+
+// Borrowed with great appreciation from
+// https://www.alexedwards.net/blog/basic-authentication-in-go
+func (app *application) basicAuth(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username, password, ok := r.BasicAuth()
+		if ok {
+			usernameHash := sha256.Sum256([]byte(username))
+			passwordHash := sha256.Sum256([]byte(password))
+			ExpectedUsernameHash := sha256.Sum256([]byte(ExpectedUsername))
+			ExpectedPasswordHash := sha256.Sum256([]byte(ExpectedPassword))
+
+			usernameMatch := subtle.ConstantTimeCompare(usernameHash[:], ExpectedUsernameHash[:]) == 1
+			passwordMatch := subtle.ConstantTimeCompare(passwordHash[:], ExpectedPasswordHash[:]) == 1
+
+			if usernameMatch && passwordMatch {
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+		w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	})
+}
 
 func (item *Item) GetHighBid(bid *Bid) {
 	db.Order("bid_amount desc").Find(bid, "item_id = ?", item.ID).Limit(1)
@@ -217,13 +245,25 @@ func adminHandler(w http.ResponseWriter, r *http.Request) {
 func init() {
 	_ = prometheus.Register(itemReqs)
 	Event = os.Getenv("AUCTION_EVENT")
+	ExpectedUsername = os.Getenv("AUCTION_USER")
+	ExpectedPassword = os.Getenv("AUCTION_PASS")
 	if Event == "" {
 		log.Fatal("[FATAL] Event environment variable not set.")
 	}
 	log.Printf("[INFO] Event Title is %s", Event)
+	if ExpectedUsername == "" {
+		log.Fatal("[FATAL] Username environment variable not set.")
+	}
+	if ExpectedPassword == "" {
+		log.Fatal("[FATAL] Password environment variable not set.")
+	}
+	log.Printf("[INFO] Username and Password set - %s", ExpectedUsername)
 }
 
 func main() {
+	app := new(application)
+	app.auth.username = ExpectedUsername
+	app.auth.password = ExpectedPassword
 	log.Print("Setting up Database Connection")
 	dsn := "auction:auction_pass@tcp(127.0.0.1:3306)/auction?charset=utf8mb4&parseTime=True&loc=Local"
 	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
@@ -250,7 +290,7 @@ func main() {
 
 	router := mux.NewRouter()
 	router.HandleFunc("/", indexHandler).Methods("GET")
-	router.HandleFunc("/admin", adminHandler).Methods("GET", "POST")
+	router.HandleFunc("/admin", app.basicAuth(adminHandler)).Methods("GET", "POST")
 	router.Handle("/metrics", promhttp.Handler())
 	router.HandleFunc(fmt.Sprintf("/%s/{itemID}", Event), itemHandler).Methods("GET", "POST")
 
