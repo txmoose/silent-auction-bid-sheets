@@ -1,0 +1,54 @@
+# fly.toml file generated for silent-auction on 2023-01-31T01:10:18-05:00
+
+app = "silent-auction"
+kill_signal = "SIGINT"
+kill_timeout = 5
+processes = []
+
+[build]
+  builder = "paketobuildpacks/builder:base"
+  buildpacks = ["gcr.io/paketo-buildpacks/go"]
+  [build.args]
+    BP_KEEP_FILES = "static/*"
+
+[env]
+  AUCTION_USER = "admin"
+  AUCTION_DB_USER = "auction"
+  AUCTION_DB_DB = "auction"
+  AUCTION_DB_HOST = "auction-mysql.internal"
+  AUCTION_DB_PORT = "3306"
+  AUCTION_EVENT = "brewfest2023"
+  PORT = "8000"
+
+[experimental]
+  auto_rollback = true
+
+[[services]]
+  http_checks = []
+  internal_port = 8000
+  processes = ["app"]
+  protocol = "tcp"
+  script_checks = []
+  [services.concurrency]
+    hard_limit = 25
+    soft_limit = 20
+    type = "connections"
+
+  [[services.ports]]
+    force_https = true
+    handlers = ["http"]
+    port = 8000
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [[services.tcp_checks]]
+    grace_period = "1s"
+    interval = "15s"
+    restart_limit = 0
+    timeout = "2s"
+
+[[statics]]
+  guest_path = "/workspace/static/css"
+  url_prefix = "/css"
