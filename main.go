@@ -225,8 +225,9 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Build message for thanks page
 		itemTemplateData := ItemTemplateData{
-			Item: item,
-			Bid:  newBid,
+			Item:  item,
+			Bid:   newBid,
+			Event: Event,
 		}
 
 		// execute thanks template
@@ -256,6 +257,7 @@ func adminHandler(w http.ResponseWriter, r *http.Request) {
 		adminTemplateData AdminTemplateData
 		adminItem         ItemTemplateData
 	)
+	wonItemsTotals := make(map[uint]uint)
 
 	adminTemplateData.Event = Event
 
@@ -268,10 +270,17 @@ func adminHandler(w http.ResponseWriter, r *http.Request) {
 			adminItem.Bid = Bid{}
 		} else {
 			adminItem.Bid = bids[0]
+			_, present := wonItemsTotals[adminItem.Bid.AuctionID]
+			if present {
+				wonItemsTotals[adminItem.Bid.AuctionID] += adminItem.Bid.BidAmount
+			} else {
+				wonItemsTotals[adminItem.Bid.AuctionID] = adminItem.Bid.BidAmount
+			}
 		}
 		adminItem.Item = item
 		adminTemplateData.Items = append(adminTemplateData.Items, adminItem)
 	}
+	adminTemplateData.WonItemTotals = wonItemsTotals
 
 	err = tmpls.ExecuteTemplate(w, "admin.html", adminTemplateData)
 	if err != nil {

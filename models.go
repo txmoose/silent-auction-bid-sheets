@@ -24,11 +24,13 @@ type ItemTemplateData struct {
 	Item   Item
 	Bid    Bid
 	MinBid uint
+	Event  string
 }
 
 type AdminTemplateData struct {
-	Event string
-	Items []ItemTemplateData
+	Event         string
+	Items         []ItemTemplateData
+	WonItemTotals map[uint]uint
 }
 
 type ErrorPageData struct {

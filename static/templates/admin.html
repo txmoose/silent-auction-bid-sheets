@@ -8,6 +8,27 @@
         <main class="container">
             <article>
                 <details>
+                    <summary role="button">Won Bid Totals by Bidder ID</summary>
+                    <table role="grid">
+                        <thead>
+                            <tr>
+                                <th scope="col">Bidder ID</th>
+                                <th scope="col">Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{ range $id, $amt := .WonItemTotals }}
+                            <tr>
+                                <td>{{ $id }}</td>
+                                <td>${{ $amt }}</td>
+                            </tr>
+                            {{ end }}
+                        </tbody>
+                    </table>
+                </details>
+            </article>
+            <article>
+                <details>
                     <summary role="button">High Bids</summary>
                     <table role="grid">
                         <thead>
