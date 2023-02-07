@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
     <head>
         {{ template "head" . }}
         <title>{{ .Event }} Admin</title>
@@ -12,16 +12,14 @@
                     <table role="grid">
                         <thead>
                             <tr>
-                                <th scope="col">Item ID</th>
                                 <th scope="col">Item Name</th>
-                                <th scope="col">Auction ID</th>
+                                <th scope="col">Bidder ID</th>
                                 <th scope="col">Highest Bid</th>
                             </tr>
                         </thead>
                         <tbody>
                             {{ range $index, $item := .Items }}
                             <tr>
-                                <th scope="row">{{ .Item.ID }}</th>
                                 <td>{{ .Item.Name }}</td>
                                 <td>{{ .Bid.AuctionID }}</td>
                                 <td>{{ .Bid.BidAmount }}</td>

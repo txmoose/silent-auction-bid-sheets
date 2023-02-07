@@ -1,9 +1,7 @@
 package main
 
-import "gorm.io/gorm"
-
 type Item struct {
-	gorm.Model
+	ID          uint
 	Name        string
 	ProvidedBy  string
 	Description string
@@ -12,7 +10,7 @@ type Item struct {
 }
 
 type Bid struct {
-	gorm.Model
+	ID        uint
 	AuctionID uint
 	BidAmount uint
 	ItemID    uint
@@ -23,8 +21,9 @@ type IndexTemplateData struct {
 }
 
 type ItemTemplateData struct {
-	Item Item
-	Bid  Bid
+	Item   Item
+	Bid    Bid
+	MinBid uint
 }
 
 type AdminTemplateData struct {

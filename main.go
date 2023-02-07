@@ -37,7 +37,7 @@ var (
 	DbPort           string
 	db               *gorm.DB
 	err              error
-	tmpls            = template.Must(template.ParseGlob("templates/*.html"))
+	tmpls            = template.Must(template.ParseGlob("static/templates/*.html"))
 	indexReqs        = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "auction_index_total",
@@ -134,8 +134,9 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Insert info into HTML Template
 		itemTemplateData := ItemTemplateData{
-			Item: item,
-			Bid:  bid,
+			Item:   item,
+			Bid:    bid,
+			MinBid: item.Value / 2,
 		}
 
 		// Execute Template
@@ -323,6 +324,7 @@ func main() {
 	app := new(application)
 	app.auth.username = ExpectedUsername
 	app.auth.password = ExpectedPassword
+	css := http.FileServer(http.Dir("static/css"))
 	log.Print("Setting up Database Connection")
 	dsn := fmt.Sprintf(
 		"%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
@@ -345,6 +347,7 @@ func main() {
 
 	router := mux.NewRouter()
 	router.HandleFunc("/", indexHandler).Methods("GET")
+	router.PathPrefix("/css/").Handler(http.StripPrefix("/css", css))
 	router.HandleFunc("/admin", app.basicAuth(adminHandler)).Methods("GET", "POST")
 	router.Handle("/metrics", promhttp.Handler())
 	router.HandleFunc(fmt.Sprintf("/%s/{itemID}", Event), itemHandler).Methods("GET", "POST")

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
     <head>
         {{ template "head" . }}
         <title>{{ .Item.Name }}</title>
@@ -9,17 +9,37 @@
             <article>
                 <hgroup>
                     <h2>{{ .Item.Name }}</h2>
-                    <h3>Compliments of {{ .Item.ProvidedBy }}, valued at {{ .Item.Value }}</h3>
+                    <b>Compliments of {{ .Item.ProvidedBy }}</b>
+                    <div role="grid">
+                        {{ .Item.Description }}
+                    </div>
+                    <div></div>
                 </hgroup>
-                <div role="grid">
-                    {{ .Item.Description }}
-                </div>
                 <div>
+                    <div class="grid">
+                        <div>
+                            <table>
+                                <tbody>
+                                    <tr>
+                                        <td><b>Value</b></td>
+                                        <td>{{ .Item.Value }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><b>Minimum Bid</b></td>
+                                        <td>{{ .MinBid }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                    </div>
                     <table>
                         <thead>
                             <tr>
-                                <th scope="col">Bidder ID</th>
-                                <th scope="col">Current High Bid</th>
+                                <th scope="col"><b>Bidder ID</b></th>
+                                <th scope="col"><b>Current High Bid</b></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -31,15 +51,15 @@
                     </table>
                 </div>
                 <details open>
-                    <summary>Cast your bid!</summary>
+                    <summary></summary>
                     <form method="POST">
                         <div class="grid">
                             <label for="AuctionID">
-                                Auction ID
+                                <b>Auction ID</b>
                                 <input type="text" id="AuctionID" name="AuctionID" placeholder="23" required>
                             </label>
                             <label for="BidAmount">
-                                Your Bid
+                                <b>Your Bid</b>
                                 <input type="number" id="BidAmount" name="BidAmount" placeholder="50" required>
                             </label>
                             <button type="submit">Bid!</button>
