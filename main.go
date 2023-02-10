@@ -32,6 +32,7 @@ import (
 //	Cards per bidder, list of items won, display as responsive grid
 var (
 	Event            string
+	EndTimeString    string
 	ExpectedUsername string
 	ExpectedPassword string
 	DbUsername       string
@@ -59,7 +60,6 @@ var (
 			Name: "auction_admin_total",
 			Help: "Counter for hits on admin page.",
 		})
-	endTimeString = "09 Feb 23 21:15 EST"
 )
 
 // Borrowed with great appreciation from
@@ -92,6 +92,14 @@ func (item *Item) GetHighBid(bid *Bid) {
 
 func (item *Item) GetAllBids(bids *[]Bid) {
 	db.Order("bid_amount desc").Find(bids, "item_id = ?", item.ID)
+}
+
+func (item *Item) EnsureNoMatchingBid(amount uint, bid *Bid) bool {
+	db.Order("bid_amount desc").Find(bid, "item_id = ? AND bid_amount = ?", item.ID, amount).Limit(1)
+	if bid.ID == 0 {
+		return true
+	}
+	return false
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
@@ -141,10 +149,8 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Pad values to 2 decimal places
 		valueStr = fmt.Sprintf("%.2f", item.Value)
-		fmt.Println(valueStr)
 		// If the value is a whole dollar, trim the .00 cents
 		valueStr = strings.TrimSuffix(valueStr, ".00")
-		fmt.Println(valueStr)
 
 		// Insert info into HTML Template
 		itemTemplateData := ItemTemplateData{
@@ -167,7 +173,7 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPost:
 		// Initialize templates
-		endTime, err := time.Parse(time.RFC822, endTimeString)
+		endTime, err := time.Parse(time.RFC822, EndTimeString)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Something went wrong, please try again"})
@@ -230,27 +236,39 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 			BidAmount: uint(BidAmount),
 			ItemID:    uint(ItemID),
 		}
-		// Insert new bid into database
-		db.Create(&newBid)
 
 		// Get corresponding Item for thanks page
 		item := Item{}
 		db.First(&item, ItemID)
 
-		// Build message for thanks page
-		itemTemplateData := ItemTemplateData{
-			Item:  item,
-			Bid:   newBid,
-			Event: Event,
-		}
+		// Ensure we're not allowing duplicate bids
+		existingBid := Bid{}
+		if item.EnsureNoMatchingBid(newBid.BidAmount, &existingBid) {
+			db.Create(&newBid)
 
-		// execute thanks template
-		err = tmpls.ExecuteTemplate(w, "thanks.html", itemTemplateData)
-		if err != nil {
-			log.Printf("[ERROR] Execute Template Error line 220 - %v", err.Error())
+			// Build message for thanks page
+			itemTemplateData := ItemTemplateData{
+				Item:  item,
+				Bid:   newBid,
+				Event: Event,
+			}
+
+			// execute thanks template
+			err = tmpls.ExecuteTemplate(w, "thanks.html", itemTemplateData)
+			if err != nil {
+				log.Printf("[ERROR] Execute Template Error line 220 - %v", err.Error())
+			}
+			// Increment Prometheus Metric Counter
+			itemReqs.WithLabelValues(item.Name, r.Method).Inc()
+			return
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Duplicate bid, please refresh the page and try again"})
+			if err != nil {
+				log.Printf("[ERROR] Execute Template Error line 243 - %v", err.Error())
+			}
+			return
 		}
-		// Increment Prometheus Metric Counter
-		itemReqs.WithLabelValues(item.Name, r.Method).Inc()
 
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -308,6 +326,7 @@ func adminHandler(w http.ResponseWriter, r *http.Request) {
 func init() {
 	_ = prometheus.Register(itemReqs)
 	Event = os.Getenv("AUCTION_EVENT")
+	EndTimeString = os.Getenv("AUCTION_END_TIME")
 	ExpectedUsername = os.Getenv("AUCTION_USER")
 	ExpectedPassword = os.Getenv("AUCTION_PASS")
 	DbUsername = os.Getenv("AUCTION_DB_USER")
@@ -318,7 +337,9 @@ func init() {
 	if Event == "" {
 		log.Fatal("[FATAL] Event environment variable not set.")
 	}
-	log.Printf("[INFO] Event Title is %s", Event)
+	if EndTimeString == "" {
+		log.Fatal("[FATAL] End Time environment variable not set.")
+	}
 	if ExpectedUsername == "" {
 		log.Fatal("[FATAL] Username environment variable not set.")
 	}

@@ -44,7 +44,7 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <th scope="row">${{ .Bid.AuctionID }}</th>
+                                <th scope="row">{{ .Bid.AuctionID }}</th>
                                 <th scope="row">${{ .Bid.BidAmount }}</th>
                             </tr>
                         </tbody>
@@ -56,7 +56,7 @@
                         <div class="grid">
                             <label for="AuctionID">
                                 <b>Bidder ID</b>
-                                <input type="text" id="AuctionID" name="AuctionID" placeholder="23" required>
+                                <input type="number" id="AuctionID" name="AuctionID" placeholder="23" required>
                             </label>
                             <label for="BidAmount">
                                 <b>Your Bid</b>

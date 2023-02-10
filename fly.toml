@@ -18,6 +18,7 @@ processes = []
   AUCTION_DB_HOST = "auction-mysql.internal"
   AUCTION_DB_PORT = "3306"
   AUCTION_EVENT = "brewfest2023"
+  AUCTION_END_TIME = "11 Feb 23 21:01 EST"
   PORT = "8000"
 
 [experimental]
