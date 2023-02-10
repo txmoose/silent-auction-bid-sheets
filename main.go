@@ -94,12 +94,24 @@ func (item *Item) GetAllBids(bids *[]Bid) {
 	db.Order("bid_amount desc").Find(bids, "item_id = ?", item.ID)
 }
 
-func (item *Item) EnsureNoMatchingBid(amount uint, bid *Bid) bool {
-	db.Order("bid_amount desc").Find(bid, "item_id = ? AND bid_amount = ?", item.ID, amount).Limit(1)
-	if bid.ID == 0 {
+func (item *Item) FoundMatchingBid(amount uint) bool {
+	var bids []Bid
+	db.Where("item_id = ? AND bid_amount = ?", item.ID, amount).Find(&bids)
+	if len(bids) != 0 {
 		return true
 	}
 	return false
+}
+
+func (item *Item) BidUnderMinBid(amount uint) bool {
+	// if new bid amount is LESS THAN min bid, return true
+	return float32(amount) < item.MinBid
+}
+
+func (item *Item) BidUnderHighBid(amount uint) bool {
+	var bid Bid
+	item.GetHighBid(&bid)
+	return amount <= bid.BidAmount
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
@@ -230,26 +242,7 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		db.First(&item, ItemID)
 
 		// Ensure we're not allowing duplicate bids
-		existingBid := Bid{}
-		if item.EnsureNoMatchingBid(newBid.BidAmount, &existingBid) {
-			db.Create(&newBid)
-
-			// Build message for thanks page
-			itemTemplateData := ItemTemplateData{
-				Item:  item,
-				Bid:   newBid,
-				Event: Event,
-			}
-
-			// execute thanks template
-			err = tmpls.ExecuteTemplate(w, "thanks.html", itemTemplateData)
-			if err != nil {
-				log.Printf("[ERROR] Execute Template Error line 220 - %v", err.Error())
-			}
-			// Increment Prometheus Metric Counter
-			itemReqs.WithLabelValues(item.Name, r.Method).Inc()
-			return
-		} else {
+		if item.FoundMatchingBid(newBid.BidAmount) {
 			w.WriteHeader(http.StatusBadRequest)
 			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Duplicate bid, please refresh the page and try again"})
 			if err != nil {
@@ -257,6 +250,42 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
+
+		if item.BidUnderMinBid(newBid.BidAmount) {
+			w.WriteHeader(http.StatusBadRequest)
+			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Bid amount under Minimum Bid, please refresh the page and try again"})
+			if err != nil {
+				log.Printf("[ERROR] Execute Template Error line 252 - %v", err.Error())
+			}
+			return
+		}
+
+		if item.BidUnderHighBid(newBid.BidAmount) {
+			w.WriteHeader(http.StatusBadRequest)
+			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Bid amount under Current High Bid, please refresh the page and try again"})
+			if err != nil {
+				log.Printf("[ERROR] Execute Template Error line 252 - %v", err.Error())
+			}
+			return
+		}
+
+		db.Create(&newBid)
+
+		// Build message for thanks page
+		itemTemplateData := ItemTemplateData{
+			Item:  item,
+			Bid:   newBid,
+			Event: Event,
+		}
+
+		// execute thanks template
+		err = tmpls.ExecuteTemplate(w, "thanks.html", itemTemplateData)
+		if err != nil {
+			log.Printf("[ERROR] Execute Template Error line 220 - %v", err.Error())
+		}
+		// Increment Prometheus Metric Counter
+		itemReqs.WithLabelValues(item.Name, r.Method).Inc()
+		return
 
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
