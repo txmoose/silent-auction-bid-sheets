@@ -5,8 +5,9 @@ type Item struct {
 	Name        string
 	ProvidedBy  string
 	Description string
-	Value       uint
+	Value       float32 `gorm:"type:decimal(10,2);"`
 	Bid         []Bid
+	MinBid      float32 `gorm:"type:decimal(10,2);"`
 }
 
 type Bid struct {
@@ -21,10 +22,11 @@ type IndexTemplateData struct {
 }
 
 type ItemTemplateData struct {
-	Item   Item
-	Bid    Bid
-	MinBid uint
-	Event  string
+	Item     Item
+	Bid      Bid
+	MinBid   uint
+	ValueStr string
+	Event    string
 }
 
 type AdminTemplateData struct {

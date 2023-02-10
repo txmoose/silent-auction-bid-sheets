@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -25,7 +26,10 @@ import (
 // Reject after time works, high bid works, entering bid works
 // Basic auth works, decided to move some of admin stuff to external scripts, there's no real
 // Need to have those functions in the admin panel
-
+// TODO: Reject duplicate bids!!!
+// TODO: Winners display page
+//
+//	Cards per bidder, list of items won, display as responsive grid
 var (
 	Event            string
 	ExpectedUsername string
@@ -104,8 +108,11 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		item := Item{}
-		var bid Bid
 		vars := mux.Vars(r)
+		var (
+			bid      Bid
+			valueStr string
+		)
 
 		itemID, err := strconv.ParseUint(vars["itemID"], 10, 32)
 		if err != nil {
@@ -132,11 +139,18 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		// Get High Bid From Database
 		item.GetHighBid(&bid)
 
+		// Pad values to 2 decimal places
+		valueStr = fmt.Sprintf("%.2f", item.Value)
+		fmt.Println(valueStr)
+		// If the value is a whole dollar, trim the .00 cents
+		valueStr = strings.TrimSuffix(valueStr, ".00")
+		fmt.Println(valueStr)
+
 		// Insert info into HTML Template
 		itemTemplateData := ItemTemplateData{
-			Item:   item,
-			Bid:    bid,
-			MinBid: item.Value / 2,
+			Item:     item,
+			Bid:      bid,
+			ValueStr: valueStr,
 		}
 
 		// Execute Template

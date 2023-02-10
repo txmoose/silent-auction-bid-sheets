@@ -22,11 +22,11 @@
                                 <tbody>
                                     <tr>
                                         <td><b>Value</b></td>
-                                        <td>{{ .Item.Value }}</td>
+                                        <td>${{ .ValueStr }}</td>
                                     </tr>
                                     <tr>
                                         <td><b>Minimum Bid</b></td>
-                                        <td>{{ .MinBid }}</td>
+                                        <td>${{ .Item.MinBid }}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -44,8 +44,8 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <th scope="row">{{ .Bid.AuctionID }}</th>
-                                <th scope="row">{{ .Bid.BidAmount }}</th>
+                                <th scope="row">${{ .Bid.AuctionID }}</th>
+                                <th scope="row">${{ .Bid.BidAmount }}</th>
                             </tr>
                         </tbody>
                     </table>
@@ -55,7 +55,7 @@
                     <form method="POST">
                         <div class="grid">
                             <label for="AuctionID">
-                                <b>Auction ID</b>
+                                <b>Bidder ID</b>
                                 <input type="text" id="AuctionID" name="AuctionID" placeholder="23" required>
                             </label>
                             <label for="BidAmount">
