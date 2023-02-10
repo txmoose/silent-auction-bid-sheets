@@ -35,6 +35,11 @@ type AdminTemplateData struct {
 	WonItemTotals map[uint]uint
 }
 
+type WinnersTemplateData struct {
+	Winners map[uint]string
+	Event   string
+}
+
 type ErrorPageData struct {
 	Message string
 }

@@ -44,8 +44,8 @@
                             <tr>
                                 <td>{{ .Item.Name }}</td>
                                 <td>{{ .Bid.AuctionID }}</td>
-                                <td>{{ .Bid.BidAmount }}</td>
-                                <td>{{ .Item.MinBid }}</td>
+                                <td>${{ .Bid.BidAmount }}</td>
+                                <td>${{ .Item.MinBid }}</td>
                             </tr>
                             {{ end }}
                         </tbody>

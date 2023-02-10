@@ -26,13 +26,13 @@ import (
 // Reject after time works, high bid works, entering bid works
 // Basic auth works, decided to move some of admin stuff to external scripts, there's no real
 // Need to have those functions in the admin panel
-// TODO: Reject duplicate bids!!!
 // TODO: Winners display page
 //
 //	Cards per bidder, list of items won, display as responsive grid
 var (
 	Event            string
 	EndTimeString    string
+	EndTime          time.Time
 	ExpectedUsername string
 	ExpectedPassword string
 	DbUsername       string
@@ -172,19 +172,7 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[INFO] Item %d requested by %s", item.ID, remoteAddr)
 
 	case http.MethodPost:
-		// Initialize templates
-		endTime, err := time.Parse(time.RFC822, EndTimeString)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "Something went wrong, please try again"})
-			if err != nil {
-				log.Printf("[ERROR] Execute Template Error line 150 - %v", err.Error())
-			}
-			log.Printf("Parsing endTime failed - %v", err.Error())
-			return
-		}
-
-		if time.Now().After(endTime) {
+		if time.Now().After(EndTime) {
 			w.WriteHeader(http.StatusUnauthorized)
 			err = tmpls.ExecuteTemplate(w, "error.html", ErrorPageData{Message: "I'm sorry, the auction has closed."})
 			if err != nil {
@@ -276,11 +264,6 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// TODO:
-// - Actual Functions
-//   - Export all bids to Excel/CSV - additional script
-//   - Batch Import Items - additional script
-//   - Generate QR Codes For Items - additional script
 func adminHandler(w http.ResponseWriter, r *http.Request) {
 	// Get all items and
 	var (
@@ -321,6 +304,45 @@ func adminHandler(w http.ResponseWriter, r *http.Request) {
 
 	adminReqs.Inc()
 	log.Printf("[INFO] Admin Request from %s", r.RemoteAddr)
+}
+
+func winnersHandler(w http.ResponseWriter, r *http.Request) {
+	_ = r
+	var (
+		WinnersData WinnersTemplateData
+		items       []Item
+	)
+	winners := make(map[uint][]string)
+
+	WinnersData.Event = Event
+
+	// Get all items
+	db.Find(&items)
+	for _, item := range items {
+		var bid Bid
+		item.GetHighBid(&bid)
+		if bid.ID == 0 {
+			continue
+		}
+		_, present := winners[bid.AuctionID]
+		if present {
+			winners[bid.AuctionID] = append(winners[bid.AuctionID], item.Name)
+		} else {
+			winners[bid.AuctionID] = []string{item.Name}
+		}
+	}
+
+	winnersString := make(map[uint]string)
+	for id, items := range winners {
+		winnersString[id] = strings.Join(items, ", ")
+	}
+
+	WinnersData.Winners = winnersString
+
+	err = tmpls.ExecuteTemplate(w, "winners.html", WinnersData)
+	if err != nil {
+		log.Printf("[ERROR] Execute Template Error line 348 - %v", err.Error())
+	}
 }
 
 func init() {
@@ -384,6 +406,12 @@ func main() {
 	}
 	log.Print("Database Connection Successful")
 
+	log.Print("Parsing End Time")
+	EndTime, err = time.Parse(time.RFC822, EndTimeString)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	log.Print("Migrating Tables Beginning")
 	_ = db.AutoMigrate(&Item{})
 	_ = db.AutoMigrate(&Bid{})
@@ -393,6 +421,7 @@ func main() {
 	router.HandleFunc("/", indexHandler).Methods("GET")
 	router.PathPrefix("/css/").Handler(http.StripPrefix("/css", css))
 	router.HandleFunc("/admin", app.basicAuth(adminHandler)).Methods("GET", "POST")
+	router.HandleFunc("/winners", app.basicAuth(winnersHandler)).Methods("GET")
 	router.Handle("/metrics", promhttp.Handler())
 	router.HandleFunc(fmt.Sprintf("/%s/{itemID}", Event), itemHandler).Methods("GET", "POST")
 
