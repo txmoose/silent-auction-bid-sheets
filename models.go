@@ -29,15 +29,15 @@ type ItemTemplateData struct {
 	Event    string
 }
 
-type AdminTemplateData struct {
-	Event         string
-	Items         []ItemTemplateData
-	WonItemTotals map[uint]uint
+type AdminWonItemData struct {
+	Total uint
+	Items string
 }
 
-type WinnersTemplateData struct {
-	Winners map[uint]string
-	Event   string
+type AdminTemplateData struct {
+	Event    string
+	Items    []ItemTemplateData
+	WonItems map[uint]AdminWonItemData
 }
 
 type ErrorPageData struct {

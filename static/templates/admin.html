@@ -13,14 +13,16 @@
                         <thead>
                             <tr>
                                 <th scope="col">Bidder ID</th>
+                                <th scope="col">Won Items</th>
                                 <th scope="col">Total Amount</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {{ range $id, $amt := .WonItemTotals }}
+                            {{ range $id, $data := .WonItems }}
                             <tr>
                                 <td>{{ $id }}</td>
-                                <td>${{ $amt }}</td>
+                                <td>{{ $data.Items }}</td>
+                                <td>${{ $data.Total }}</td>
                             </tr>
                             {{ end }}
                         </tbody>
